@@ -87,6 +87,7 @@ export class AuthService {
         where: { id: stored.userId },
         include: { role: true },
       });
+      if (!user) throw new UnauthorizedException('User not found');
       return this.generateTokens({ userId: user.id, role: user.role.name, outletId: user.outletId });
     } else {
       return this.generateTokens({ customerId: stored.customerId }, 'customer');
