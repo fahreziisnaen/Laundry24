@@ -10,6 +10,7 @@ RUN npm install
 COPY . .
 RUN npx prisma generate
 RUN npm run build
+RUN npx tsc prisma/seed.ts --module commonjs --target ES2021 --esModuleInterop true --skipLibCheck true --outDir ./dist --rootDir .
 
 # ── Production stage ───────────────────────────────────────────
 FROM node:20-alpine AS runner
