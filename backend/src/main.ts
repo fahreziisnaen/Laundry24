@@ -3,6 +3,7 @@ import { ValidationPipe, Logger } from '@nestjs/common';
 import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
 import { ConfigService } from '@nestjs/config';
 import { AppModule } from './app.module';
+import { ResponseInterceptor } from './common/interceptors/response.interceptor';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule, {
@@ -12,6 +13,9 @@ async function bootstrap() {
   const config = app.get(ConfigService);
   const port = config.get<number>('PORT', 3000);
   const frontendUrl = config.get<string>('FRONTEND_URL', 'http://localhost:5173');
+
+  // ── Global response wrapper ────────────────────────────────
+  app.useGlobalInterceptors(new ResponseInterceptor());
 
   // ── Global validation pipe ──────────────────────────────────
   app.useGlobalPipes(

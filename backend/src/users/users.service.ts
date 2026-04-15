@@ -23,13 +23,17 @@ export class UsersService {
       where: { id, deletedAt: null },
       select: {
         id: true, name: true, email: true, phone: true,
-        isActive: true, createdAt: true, lastLoginAt: true,
+        outletId: true, isActive: true, createdAt: true, lastLoginAt: true,
         role: { select: { name: true } },
-        outlet: { select: { name: true } },
+        outlet: { select: { id: true, name: true } },
       },
     });
     if (!user) throw new NotFoundException('User not found');
-    return user;
+    return {
+      ...user,
+      role: user.role.name,
+      outletName: user.outlet?.name ?? null,
+    };
   }
 
   async updateProfile(id: number, data: { name?: string; phone?: string; password?: string }) {
