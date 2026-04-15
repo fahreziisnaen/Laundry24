@@ -1,0 +1,692 @@
+// ============================================================
+// Laundry24 - Prisma Schema
+// DB: MariaDB / MySQL
+// ============================================================
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+// ============================================================
+// ROLE
+// ============================================================
+model Role {
+  id          Int      @id @default(autoincrement()) @db.UnsignedInt
+  name        String   @unique @db.VarChar(50)
+  permissions Json     @default("[]")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  users User[]
+
+  @@map("roles")
+}
+
+// ============================================================
+// OUTLET
+// ============================================================
+model Outlet {
+  id         Int       @id @default(autoincrement()) @db.UnsignedInt
+  name       String    @db.VarChar(100)
+  address    String?   @db.Text
+  phone      String?   @db.VarChar(20)
+  city       String?   @db.VarChar(100)
+  isActive   Boolean   @default(true) @map("is_active")
+  createdAt  DateTime  @default(now()) @map("created_at")
+  updatedAt  DateTime  @updatedAt @map("updated_at")
+  deletedAt  DateTime? @map("deleted_at")
+
+  users          User[]
+  customers      Customer[]
+  serviceTypes   ServiceType[]
+  employees      Employee[]
+  shifts         Shift[]
+  inventoryItems InventoryItem[]
+  orders         Order[]
+  machines       Machine[]
+  promotions     Promotion[]
+  notifications  Notification[]
+
+  @@map("outlets")
+}
+
+// ============================================================
+// USER
+// ============================================================
+model User {
+  id           Int       @id @default(autoincrement()) @db.UnsignedInt
+  outletId     Int?      @map("outlet_id") @db.UnsignedInt
+  roleId       Int       @map("role_id") @db.UnsignedInt
+  name         String    @db.VarChar(100)
+  email        String    @unique @db.VarChar(100)
+  phone        String?   @db.VarChar(20)
+  passwordHash String    @map("password_hash") @db.VarChar(255)
+  avatarUrl    String?   @map("avatar_url") @db.VarChar(500)
+  isActive     Boolean   @default(true) @map("is_active")
+  lastLoginAt  DateTime? @map("last_login_at")
+  createdAt    DateTime  @default(now()) @map("created_at")
+  updatedAt    DateTime  @updatedAt @map("updated_at")
+  deletedAt    DateTime? @map("deleted_at")
+
+  outlet           Outlet?             @relation(fields: [outletId], references: [id])
+  role             Role                @relation(fields: [roleId], references: [id])
+  employee         Employee?
+  ordersAsStaff    Order[]             @relation("StaffOrders")
+  ordersAsDriver   Order[]             @relation("DriverOrders")
+  deliveryTasks    DeliveryTask[]
+  inventoryLogs    InventoryLog[]
+  machineLogsUser  MachineLog[]
+  notifications    Notification[]
+  orderStatusHistory OrderStatusHistory[]
+  paymentsAsCashier Payment[]
+  refreshTokens    RefreshToken[]
+
+  @@map("users")
+}
+
+// ============================================================
+// CUSTOMER
+// ============================================================
+model Customer {
+  id             Int       @id @default(autoincrement()) @db.UnsignedInt
+  outletId       Int?      @map("outlet_id") @db.UnsignedInt
+  name           String    @db.VarChar(100)
+  email          String?   @unique @db.VarChar(100)
+  phone          String    @unique @db.VarChar(20)
+  address        String?   @db.Text
+  walletBalance  Decimal   @default(0.00) @map("wallet_balance") @db.Decimal(12, 2)
+  loyaltyPoints  Int       @default(0) @map("loyalty_points") @db.UnsignedInt
+  notes          String?   @db.Text
+  isActive       Boolean   @default(true) @map("is_active")
+  createdAt      DateTime  @default(now()) @map("created_at")
+  updatedAt      DateTime  @updatedAt @map("updated_at")
+  deletedAt      DateTime? @map("deleted_at")
+
+  outlet              Outlet?              @relation(fields: [outletId], references: [id])
+  auth                CustomerAuth?
+  orders              Order[]
+  walletTransactions  WalletTransaction[]
+  notifications       Notification[]
+  refreshTokens       RefreshToken[]
+
+  @@map("customers")
+}
+
+// ============================================================
+// CUSTOMER AUTH
+// ============================================================
+model CustomerAuth {
+  id           Int       @id @default(autoincrement()) @db.UnsignedInt
+  customerId   Int       @unique @map("customer_id") @db.UnsignedInt
+  passwordHash String    @map("password_hash") @db.VarChar(255)
+  refreshToken String?   @map("refresh_token") @db.VarChar(500)
+  fcmToken     String?   @map("fcm_token") @db.VarChar(500)
+  lastLoginAt  DateTime? @map("last_login_at")
+  createdAt    DateTime  @default(now()) @map("created_at")
+  updatedAt    DateTime  @updatedAt @map("updated_at")
+
+  customer Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
+
+  @@map("customer_auth")
+}
+
+// ============================================================
+// SERVICE TYPE
+// ============================================================
+model ServiceType {
+  id         Int      @id @default(autoincrement()) @db.UnsignedInt
+  outletId   Int?     @map("outlet_id") @db.UnsignedInt
+  name       String   @db.VarChar(100)
+  code       String   @db.VarChar(20)
+  basePrice  Decimal  @default(0.00) @map("base_price") @db.Decimal(12, 2)
+  unit       String   @default("kg") @db.VarChar(20)
+  slaHours   Int      @default(24) @map("sla_hours") @db.UnsignedInt
+  isActive   Boolean  @default(true) @map("is_active")
+  createdAt  DateTime @default(now()) @map("created_at")
+  updatedAt  DateTime @updatedAt @map("updated_at")
+
+  outlet Outlet? @relation(fields: [outletId], references: [id])
+  orders Order[]
+
+  @@map("service_types")
+}
+
+// ============================================================
+// ORDER
+// ============================================================
+model Order {
+  id               Int           @id @default(autoincrement()) @db.UnsignedInt
+  orderNumber      String        @unique @map("order_number") @db.VarChar(30)
+  outletId         Int           @map("outlet_id") @db.UnsignedInt
+  customerId       Int           @map("customer_id") @db.UnsignedInt
+  staffId          Int?          @map("staff_id") @db.UnsignedInt
+  driverId         Int?          @map("driver_id") @db.UnsignedInt
+  status           OrderStatus   @default(RECEIVED)
+  serviceTypeId    Int           @map("service_type_id") @db.UnsignedInt
+  totalWeight      Decimal?      @map("total_weight") @db.Decimal(8, 2)
+  totalItems       Int?          @map("total_items") @db.UnsignedInt
+  subtotal         Decimal       @default(0.00) @db.Decimal(12, 2)
+  discountAmount   Decimal       @default(0.00) @map("discount_amount") @db.Decimal(12, 2)
+  taxAmount        Decimal       @default(0.00) @map("tax_amount") @db.Decimal(12, 2)
+  totalAmount      Decimal       @default(0.00) @map("total_amount") @db.Decimal(12, 2)
+  paidAmount       Decimal       @default(0.00) @map("paid_amount") @db.Decimal(12, 2)
+  paymentStatus    PaymentStatus @default(UNPAID) @map("payment_status")
+  notes            String?       @db.Text
+  pickupAddress    String?       @map("pickup_address") @db.Text
+  deliveryAddress  String?       @map("delivery_address") @db.Text
+  estimatedDoneAt  DateTime?     @map("estimated_done_at")
+  pickedUpAt       DateTime?     @map("picked_up_at")
+  washedAt         DateTime?     @map("washed_at")
+  ironedAt         DateTime?     @map("ironed_at")
+  readyAt          DateTime?     @map("ready_at")
+  deliveredAt      DateTime?     @map("delivered_at")
+  createdAt        DateTime      @default(now()) @map("created_at")
+  updatedAt        DateTime      @updatedAt @map("updated_at")
+  deletedAt        DateTime?     @map("deleted_at")
+
+  outlet          Outlet              @relation(fields: [outletId], references: [id])
+  customer        Customer            @relation(fields: [customerId], references: [id])
+  staff           User?               @relation("StaffOrders", fields: [staffId], references: [id])
+  driver          User?               @relation("DriverOrders", fields: [driverId], references: [id])
+  serviceType     ServiceType         @relation(fields: [serviceTypeId], references: [id])
+  items           OrderItem[]
+  statusHistory   OrderStatusHistory[]
+  payments        Payment[]
+  deliveryTask    DeliveryTask?
+  inventoryLogs   InventoryLog[]
+  machineLogs     MachineLog[]
+  walletTxns      WalletTransaction[]
+
+  @@map("orders")
+}
+
+enum OrderStatus {
+  RECEIVED
+  WASHING
+  IRONING
+  DONE
+  DELIVERED
+  CANCELLED
+}
+
+enum PaymentStatus {
+  UNPAID
+  PARTIAL
+  PAID
+}
+
+// ============================================================
+// ORDER ITEM
+// ============================================================
+model OrderItem {
+  id         Int      @id @default(autoincrement()) @db.UnsignedInt
+  orderId    Int      @map("order_id") @db.UnsignedInt
+  name       String   @db.VarChar(100)
+  quantity   Int      @default(1) @db.UnsignedInt
+  unitPrice  Decimal  @default(0.00) @map("unit_price") @db.Decimal(12, 2)
+  totalPrice Decimal  @default(0.00) @map("total_price") @db.Decimal(12, 2)
+  notes      String?  @db.Text
+  photoUrl   String?  @map("photo_url") @db.VarChar(500)
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  order Order @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  @@map("order_items")
+}
+
+// ============================================================
+// ORDER STATUS HISTORY
+// ============================================================
+model OrderStatusHistory {
+  id        Int         @id @default(autoincrement()) @db.UnsignedInt
+  orderId   Int         @map("order_id") @db.UnsignedInt
+  userId    Int?        @map("user_id") @db.UnsignedInt
+  status    OrderStatus
+  notes     String?     @db.Text
+  createdAt DateTime    @default(now()) @map("created_at")
+
+  order Order  @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  user  User?  @relation(fields: [userId], references: [id])
+
+  @@map("order_status_history")
+}
+
+// ============================================================
+// PAYMENT
+// ============================================================
+model Payment {
+  id          Int           @id @default(autoincrement()) @db.UnsignedInt
+  orderId     Int           @map("order_id") @db.UnsignedInt
+  cashierId   Int?          @map("cashier_id") @db.UnsignedInt
+  method      PaymentMethod
+  amount      Decimal       @db.Decimal(12, 2)
+  referenceNo String?       @map("reference_no") @db.VarChar(100)
+  status      TxnStatus     @default(PENDING)
+  paidAt      DateTime?     @map("paid_at")
+  notes       String?       @db.Text
+  createdAt   DateTime      @default(now()) @map("created_at")
+  updatedAt   DateTime      @updatedAt @map("updated_at")
+
+  order   Order  @relation(fields: [orderId], references: [id])
+  cashier User?  @relation(fields: [cashierId], references: [id])
+
+  @@map("payments")
+}
+
+enum PaymentMethod {
+  CASH
+  TRANSFER
+  QRIS
+  WALLET
+  LOYALTY
+}
+
+enum TxnStatus {
+  PENDING
+  SUCCESS
+  FAILED
+  REFUNDED
+}
+
+// ============================================================
+// WALLET TRANSACTION
+// ============================================================
+model WalletTransaction {
+  id           Int      @id @default(autoincrement()) @db.UnsignedInt
+  customerId   Int      @map("customer_id") @db.UnsignedInt
+  orderId      Int?     @map("order_id") @db.UnsignedInt
+  type         WalletTxType
+  amount       Decimal  @db.Decimal(12, 2)
+  balanceAfter Decimal  @map("balance_after") @db.Decimal(12, 2)
+  reference    String?  @db.VarChar(100)
+  notes        String?  @db.Text
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  customer Customer @relation(fields: [customerId], references: [id])
+  order    Order?   @relation(fields: [orderId], references: [id])
+
+  @@map("wallet_transactions")
+}
+
+enum WalletTxType {
+  TOPUP
+  DEDUCT
+  REFUND
+}
+
+// ============================================================
+// PROMOTION
+// ============================================================
+model Promotion {
+  id          Int       @id @default(autoincrement()) @db.UnsignedInt
+  outletId    Int?      @map("outlet_id") @db.UnsignedInt
+  code        String    @unique @db.VarChar(30)
+  name        String    @db.VarChar(100)
+  type        PromoType @default(PERCENT)
+  value       Decimal   @db.Decimal(12, 2)
+  minOrder    Decimal   @default(0.00) @map("min_order") @db.Decimal(12, 2)
+  maxDiscount Decimal?  @map("max_discount") @db.Decimal(12, 2)
+  usageLimit  Int?      @map("usage_limit") @db.UnsignedInt
+  usageCount  Int       @default(0) @map("usage_count") @db.UnsignedInt
+  validFrom   DateTime  @map("valid_from") @db.Date
+  validUntil  DateTime  @map("valid_until") @db.Date
+  isActive    Boolean   @default(true) @map("is_active")
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime  @updatedAt @map("updated_at")
+
+  outlet Outlet? @relation(fields: [outletId], references: [id])
+
+  @@map("promotions")
+}
+
+enum PromoType {
+  PERCENT
+  FIXED
+  CASHBACK
+}
+
+// ============================================================
+// EMPLOYEE
+// ============================================================
+model Employee {
+  id             Int      @id @default(autoincrement()) @db.UnsignedInt
+  userId         Int      @unique @map("user_id") @db.UnsignedInt
+  outletId       Int      @map("outlet_id") @db.UnsignedInt
+  employeeCode   String   @unique @map("employee_code") @db.VarChar(20)
+  position       String?  @db.VarChar(100)
+  hireDate       DateTime @map("hire_date") @db.Date
+  baseSalary     Decimal  @default(0.00) @map("base_salary") @db.Decimal(12, 2)
+  bankName       String?  @map("bank_name") @db.VarChar(100)
+  bankAccount    String?  @map("bank_account") @db.VarChar(50)
+  emergencyName  String?  @map("emergency_name") @db.VarChar(100)
+  emergencyPhone String?  @map("emergency_phone") @db.VarChar(20)
+  isActive       Boolean  @default(true) @map("is_active")
+  createdAt      DateTime @default(now()) @map("created_at")
+  updatedAt      DateTime @updatedAt @map("updated_at")
+
+  user             User               @relation(fields: [userId], references: [id])
+  outlet           Outlet             @relation(fields: [outletId], references: [id])
+  shiftAssignments ShiftAssignment[]
+  attendance       Attendance[]
+  payrolls         Payroll[]
+
+  @@map("employees")
+}
+
+// ============================================================
+// SHIFT
+// ============================================================
+model Shift {
+  id        Int      @id @default(autoincrement()) @db.UnsignedInt
+  outletId  Int      @map("outlet_id") @db.UnsignedInt
+  name      String   @db.VarChar(50)
+  startTime String   @map("start_time") @db.VarChar(8)
+  endTime   String   @map("end_time") @db.VarChar(8)
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  outlet           Outlet            @relation(fields: [outletId], references: [id])
+  shiftAssignments ShiftAssignment[]
+  attendance       Attendance[]
+
+  @@map("shifts")
+}
+
+// ============================================================
+// SHIFT ASSIGNMENT
+// ============================================================
+model ShiftAssignment {
+  id         Int      @id @default(autoincrement()) @db.UnsignedInt
+  employeeId Int      @map("employee_id") @db.UnsignedInt
+  shiftId    Int      @map("shift_id") @db.UnsignedInt
+  workDate   DateTime @map("work_date") @db.Date
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  employee Employee @relation(fields: [employeeId], references: [id])
+  shift    Shift    @relation(fields: [shiftId], references: [id])
+
+  @@unique([employeeId, workDate])
+  @@map("shift_assignments")
+}
+
+// ============================================================
+// ATTENDANCE
+// ============================================================
+model Attendance {
+  id           Int              @id @default(autoincrement()) @db.UnsignedInt
+  employeeId   Int              @map("employee_id") @db.UnsignedInt
+  shiftId      Int?             @map("shift_id") @db.UnsignedInt
+  checkInAt    DateTime         @map("check_in_at")
+  checkOutAt   DateTime?        @map("check_out_at")
+  checkInLat   Decimal?         @map("check_in_lat") @db.Decimal(10, 7)
+  checkInLng   Decimal?         @map("check_in_lng") @db.Decimal(10, 7)
+  checkOutLat  Decimal?         @map("check_out_lat") @db.Decimal(10, 7)
+  checkOutLng  Decimal?         @map("check_out_lng") @db.Decimal(10, 7)
+  status       AttendanceStatus @default(PRESENT)
+  notes        String?          @db.Text
+  createdAt    DateTime         @default(now()) @map("created_at")
+  updatedAt    DateTime         @updatedAt @map("updated_at")
+
+  employee Employee @relation(fields: [employeeId], references: [id])
+  shift    Shift?   @relation(fields: [shiftId], references: [id])
+
+  @@map("attendance")
+}
+
+enum AttendanceStatus {
+  PRESENT
+  LATE
+  ABSENT
+  LEAVE
+  HOLIDAY
+}
+
+// ============================================================
+// PAYROLL
+// ============================================================
+model Payroll {
+  id           Int           @id @default(autoincrement()) @db.UnsignedInt
+  employeeId   Int           @map("employee_id") @db.UnsignedInt
+  periodStart  DateTime      @map("period_start") @db.Date
+  periodEnd    DateTime      @map("period_end") @db.Date
+  workingDays  Int           @default(0) @map("working_days") @db.UnsignedInt
+  presentDays  Int           @default(0) @map("present_days") @db.UnsignedInt
+  baseSalary   Decimal       @map("base_salary") @db.Decimal(12, 2)
+  overtimePay  Decimal       @default(0.00) @map("overtime_pay") @db.Decimal(12, 2)
+  allowances   Decimal       @default(0.00) @db.Decimal(12, 2)
+  deductions   Decimal       @default(0.00) @db.Decimal(12, 2)
+  netSalary    Decimal       @map("net_salary") @db.Decimal(12, 2)
+  status       PayrollStatus @default(DRAFT)
+  paidAt       DateTime?     @map("paid_at")
+  notes        String?       @db.Text
+  createdAt    DateTime      @default(now()) @map("created_at")
+  updatedAt    DateTime      @updatedAt @map("updated_at")
+
+  employee Employee @relation(fields: [employeeId], references: [id])
+
+  @@map("payroll")
+}
+
+enum PayrollStatus {
+  DRAFT
+  APPROVED
+  PAID
+}
+
+// ============================================================
+// INVENTORY ITEM
+// ============================================================
+model InventoryItem {
+  id          Int             @id @default(autoincrement()) @db.UnsignedInt
+  outletId    Int             @map("outlet_id") @db.UnsignedInt
+  name        String          @db.VarChar(100)
+  category    InventoryCategory
+  unit        String          @default("pcs") @db.VarChar(20)
+  stock       Decimal         @default(0.000) @db.Decimal(12, 3)
+  minStock    Decimal         @default(0.000) @map("min_stock") @db.Decimal(12, 3)
+  costPerUnit Decimal         @default(0.00) @map("cost_per_unit") @db.Decimal(12, 2)
+  isActive    Boolean         @default(true) @map("is_active")
+  createdAt   DateTime        @default(now()) @map("created_at")
+  updatedAt   DateTime        @updatedAt @map("updated_at")
+
+  outlet Outlet         @relation(fields: [outletId], references: [id])
+  logs   InventoryLog[]
+
+  @@map("inventory_items")
+}
+
+enum InventoryCategory {
+  DETERGENT
+  SOFTENER
+  PERFUME
+  PLASTIC
+  HANGER
+  OTHER
+}
+
+// ============================================================
+// INVENTORY LOG
+// ============================================================
+model InventoryLog {
+  id          Int          @id @default(autoincrement()) @db.UnsignedInt
+  itemId      Int          @map("item_id") @db.UnsignedInt
+  userId      Int?         @map("user_id") @db.UnsignedInt
+  orderId     Int?         @map("order_id") @db.UnsignedInt
+  type        InvLogType
+  quantity    Decimal      @db.Decimal(12, 3)
+  stockBefore Decimal      @map("stock_before") @db.Decimal(12, 3)
+  stockAfter  Decimal      @map("stock_after") @db.Decimal(12, 3)
+  notes       String?      @db.Text
+  createdAt   DateTime     @default(now()) @map("created_at")
+
+  item  InventoryItem @relation(fields: [itemId], references: [id])
+  user  User?         @relation(fields: [userId], references: [id])
+  order Order?        @relation(fields: [orderId], references: [id])
+
+  @@map("inventory_logs")
+}
+
+enum InvLogType {
+  IN
+  OUT
+  ADJUSTMENT
+}
+
+// ============================================================
+// DELIVERY TASK
+// ============================================================
+model DeliveryTask {
+  id          Int            @id @default(autoincrement()) @db.UnsignedInt
+  orderId     Int            @unique @map("order_id") @db.UnsignedInt
+  driverId    Int?           @map("driver_id") @db.UnsignedInt
+  type        DeliveryType
+  scheduledAt DateTime?      @map("scheduled_at")
+  startedAt   DateTime?      @map("started_at")
+  completedAt DateTime?      @map("completed_at")
+  address     String         @db.Text
+  latitude    Decimal?       @db.Decimal(10, 7)
+  longitude   Decimal?       @db.Decimal(10, 7)
+  status      DeliveryStatus @default(PENDING)
+  notes       String?        @db.Text
+  createdAt   DateTime       @default(now()) @map("created_at")
+  updatedAt   DateTime       @updatedAt @map("updated_at")
+
+  order  Order @relation(fields: [orderId], references: [id])
+  driver User? @relation(fields: [driverId], references: [id])
+
+  @@map("delivery_tasks")
+}
+
+enum DeliveryType {
+  PICKUP
+  DELIVERY
+}
+
+enum DeliveryStatus {
+  PENDING
+  ASSIGNED
+  ON_WAY
+  DONE
+  FAILED
+}
+
+// ============================================================
+// MACHINE (IoT simulation)
+// ============================================================
+model Machine {
+  id         Int           @id @default(autoincrement()) @db.UnsignedInt
+  outletId   Int           @map("outlet_id") @db.UnsignedInt
+  name       String        @db.VarChar(50)
+  type       MachineType
+  status     MachineStatus @default(IDLE)
+  capacityKg Decimal       @map("capacity_kg") @db.Decimal(5, 2)
+  nfcUid     String?       @map("nfc_uid") @db.VarChar(50)
+  lastPingAt DateTime?     @map("last_ping_at")
+  createdAt  DateTime      @default(now()) @map("created_at")
+  updatedAt  DateTime      @updatedAt @map("updated_at")
+
+  outlet Outlet       @relation(fields: [outletId], references: [id])
+  logs   MachineLog[]
+
+  @@map("machines")
+}
+
+enum MachineType {
+  WASHER
+  DRYER
+  IRON
+}
+
+enum MachineStatus {
+  IDLE
+  RUNNING
+  MAINTENANCE
+  OFFLINE
+}
+
+// ============================================================
+// MACHINE LOG
+// ============================================================
+model MachineLog {
+  id        Int          @id @default(autoincrement()) @db.UnsignedInt
+  machineId Int          @map("machine_id") @db.UnsignedInt
+  orderId   Int?         @map("order_id") @db.UnsignedInt
+  userId    Int?         @map("user_id") @db.UnsignedInt
+  event     MachineEvent
+  details   Json?
+  createdAt DateTime     @default(now()) @map("created_at")
+
+  machine Machine @relation(fields: [machineId], references: [id])
+  order   Order?  @relation(fields: [orderId], references: [id])
+  user    User?   @relation(fields: [userId], references: [id])
+
+  @@map("machine_logs")
+}
+
+enum MachineEvent {
+  START
+  STOP
+  FAULT
+  MAINTENANCE
+}
+
+// ============================================================
+// NOTIFICATION
+// ============================================================
+model Notification {
+  id         Int              @id @default(autoincrement()) @db.UnsignedInt
+  userId     Int?             @map("user_id") @db.UnsignedInt
+  customerId Int?             @map("customer_id") @db.UnsignedInt
+  outletId   Int?             @map("outlet_id") @db.UnsignedInt
+  type       NotifType
+  title      String           @db.VarChar(200)
+  body       String           @db.Text
+  data       Json?
+  channel    NotifChannel     @default(IN_APP)
+  isRead     Boolean          @default(false) @map("is_read")
+  sentAt     DateTime?        @map("sent_at")
+  createdAt  DateTime         @default(now()) @map("created_at")
+
+  user     User?     @relation(fields: [userId], references: [id])
+  customer Customer? @relation(fields: [customerId], references: [id])
+  outlet   Outlet?   @relation(fields: [outletId], references: [id])
+
+  @@map("notifications")
+}
+
+enum NotifType {
+  ORDER_STATUS
+  PROMO
+  REMINDER
+  SYSTEM
+}
+
+enum NotifChannel {
+  PUSH
+  WHATSAPP
+  EMAIL
+  IN_APP
+}
+
+// ============================================================
+// REFRESH TOKEN
+// ============================================================
+model RefreshToken {
+  id         Int      @id @default(autoincrement()) @db.UnsignedInt
+  userId     Int?     @map("user_id") @db.UnsignedInt
+  customerId Int?     @map("customer_id") @db.UnsignedInt
+  tokenHash  String   @unique @map("token_hash") @db.VarChar(255)
+  expiresAt  DateTime @map("expires_at")
+  revoked    Boolean  @default(false)
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  user     User?     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  customer Customer? @relation(fields: [customerId], references: [id], onDelete: Cascade)
+
+  @@map("refresh_tokens")
+}

@@ -1,0 +1,88 @@
+version: '3.9'
+
+services:
+
+  # ── MariaDB ──────────────────────────────────────────────────
+  db:
+    image: mariadb:11.2
+    container_name: laundry24-db
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD:-rootpassword}
+      MYSQL_DATABASE: ${DB_NAME:-laundry24_db}
+      MYSQL_USER: ${DB_USER:-laundry24}
+      MYSQL_PASSWORD: ${DB_PASSWORD:-password}
+    volumes:
+      - db_data:/var/lib/mysql
+      - ./database/schema.sql:/docker-entrypoint-initdb.d/01-schema.sql:ro
+    ports:
+      - "3306:3306"
+    healthcheck:
+      test: ["CMD", "healthcheck.sh", "--su-mysql", "--connect", "--innodb_initialized"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - laundry24
+
+  # ── Backend (NestJS) ─────────────────────────────────────────
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: laundry24-backend
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      NODE_ENV: production
+      PORT: 3000
+      DATABASE_URL: mysql://${DB_USER:-laundry24}:${DB_PASSWORD:-password}@db:3306/${DB_NAME:-laundry24_db}
+      JWT_SECRET: ${JWT_SECRET:-change_me_in_production_at_least_32_chars}
+      JWT_EXPIRES_IN: ${JWT_EXPIRES_IN:-15m}
+      JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET:-change_me_refresh_secret_32_chars}
+      JWT_REFRESH_EXPIRES_IN: ${JWT_REFRESH_EXPIRES_IN:-7d}
+      FRONTEND_URL: http://localhost:80
+    volumes:
+      - uploads:/app/uploads
+    ports:
+      - "3000:3000"
+    networks:
+      - laundry24
+    command: >
+      sh -c "npx prisma migrate deploy && npx ts-node prisma/seed.ts && node dist/main"
+
+  # ── Frontend (React + Nginx) ──────────────────────────────────
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: laundry24-frontend
+    restart: unless-stopped
+    depends_on:
+      - backend
+    ports:
+      - "80:80"
+    networks:
+      - laundry24
+
+  # ── Adminer (optional DB UI) ──────────────────────────────────
+  adminer:
+    image: adminer:latest
+    container_name: laundry24-adminer
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    networks:
+      - laundry24
+    profiles:
+      - dev
+
+volumes:
+  db_data:
+  uploads:
+
+networks:
+  laundry24:
+    driver: bridge
