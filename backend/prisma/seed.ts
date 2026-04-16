@@ -56,6 +56,34 @@ async function main() {
   });
   console.log(`✅ Staff: ${staff.email}`);
 
+  // ── Employee records ─────────────────────────────────────────
+  await prisma.employee.upsert({
+    where: { id: 1 },
+    update: {},
+    create: {
+      userId: owner.id,
+      outletId: outlet.id,
+      employeeCode: 'EMP-1-0001',
+      position: 'Owner / Manager',
+      hireDate: new Date('2023-01-01'),
+      baseSalary: 10000000,
+    },
+  });
+
+  await prisma.employee.upsert({
+    where: { id: 2 },
+    update: {},
+    create: {
+      userId: staff.id,
+      outletId: outlet.id,
+      employeeCode: 'EMP-1-0002',
+      position: 'Operator Laundry',
+      hireDate: new Date('2023-03-15'),
+      baseSalary: 3500000,
+    },
+  });
+  console.log('✅ Employee records created');
+
   // ── Service Types ─────────────────────────────────────────────
   await Promise.all([
     prisma.serviceType.upsert({

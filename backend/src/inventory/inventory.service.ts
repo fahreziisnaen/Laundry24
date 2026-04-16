@@ -18,6 +18,15 @@ export class CreateInventoryItemDto {
   @ApiProperty() @IsNumber() @Min(0) costPerUnit: number;
 }
 
+export class UpdateInventoryItemDto {
+  @ApiPropertyOptional() @IsOptional() @IsString() name?: string;
+  @ApiPropertyOptional() @IsOptional() @IsEnum(['DETERGENT','SOFTENER','PERFUME','PLASTIC','HANGER','OTHER'])
+  category?: InventoryCategory;
+  @ApiPropertyOptional() @IsOptional() @IsString() unit?: string;
+  @ApiPropertyOptional() @IsOptional() @IsNumber() @Min(0) minStock?: number;
+  @ApiPropertyOptional() @IsOptional() @IsNumber() @Min(0) costPerUnit?: number;
+}
+
 export class AdjustStockDto {
   @ApiProperty({ enum: ['IN','OUT','ADJUSTMENT'] })
   @IsEnum(['IN','OUT','ADJUSTMENT'])
@@ -37,6 +46,12 @@ export class InventoryService {
     return this.prisma.inventoryItem.create({ data: { ...dto } });
   }
 
+  async update(id: number, dto: UpdateInventoryItemDto) {
+    const item = await this.prisma.inventoryItem.findUnique({ where: { id } });
+    if (!item) throw new NotFoundException('Item not found');
+    return this.prisma.inventoryItem.update({ where: { id }, data: dto });
+  }
+
   async findAll(outletId: number) {
     return this.prisma.inventoryItem.findMany({
       where: { outletId, isActive: true },
@@ -45,13 +60,10 @@ export class InventoryService {
   }
 
   async findLowStock(outletId: number) {
-    return this.prisma.inventoryItem.findMany({
-      where: {
-        outletId,
-        isActive: true,
-        stock: { lte: this.prisma.inventoryItem.fields.minStock as any },
-      },
+    const items = await this.prisma.inventoryItem.findMany({
+      where: { outletId, isActive: true },
     });
+    return items.filter((item) => Number(item.stock) <= Number(item.minStock));
   }
 
   async adjustStock(itemId: number, dto: AdjustStockDto, userId?: number, orderId?: number) {

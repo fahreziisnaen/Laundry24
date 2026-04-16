@@ -1,6 +1,6 @@
-import { Controller, Get, Post, Body, Param, ParseIntPipe, Query } from '@nestjs/common';
+import { Controller, Get, Post, Patch, Body, Param, ParseIntPipe, Query } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
-import { InventoryService, CreateInventoryItemDto, AdjustStockDto } from './inventory.service';
+import { InventoryService, CreateInventoryItemDto, UpdateInventoryItemDto, AdjustStockDto } from './inventory.service';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
 import { Roles } from '../common/decorators/roles.decorator';
 
@@ -19,15 +19,17 @@ export class InventoryController {
 
   @Get()
   @ApiOperation({ summary: 'List inventory items' })
-  findAll(@CurrentUser() user: any, @Query('outletId') outletId?: string) {
+  findAll(@CurrentUser() user: any, @Query('lowStock') lowStock?: string, @Query('outletId') outletId?: string) {
     const id = outletId ? parseInt(outletId) : user.outletId;
+    if (lowStock === 'true') return this.inventoryService.findLowStock(id);
     return this.inventoryService.findAll(id);
   }
 
-  @Get('low-stock')
-  @ApiOperation({ summary: 'Get low-stock items' })
-  lowStock(@CurrentUser() user: any) {
-    return this.inventoryService.findLowStock(user.outletId);
+  @Patch(':id')
+  @Roles('OWNER', 'ADMIN')
+  @ApiOperation({ summary: 'Update inventory item details' })
+  update(@Param('id', ParseIntPipe) id: number, @Body() dto: UpdateInventoryItemDto) {
+    return this.inventoryService.update(id, dto);
   }
 
   @Post(':id/adjust')

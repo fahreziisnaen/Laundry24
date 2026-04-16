@@ -1,9 +1,8 @@
 import { Injectable, NotFoundException, ConflictException } from '@nestjs/common';
 import * as bcrypt from 'bcrypt';
 import { PrismaService } from '../prisma/prisma.service';
-import { IsString, IsEmail, IsNumber, IsOptional, IsDateString, Min } from 'class-validator';
+import { IsString, IsEmail, IsNumber, IsOptional, IsDateString, IsBoolean, Min } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { Type } from 'class-transformer';
 import { Prisma, AttendanceStatus } from '@prisma/client';
 import * as dayjs from 'dayjs';
 
@@ -33,10 +32,20 @@ export class CheckOutDto {
   @ApiPropertyOptional() @IsOptional() lng?: number;
 }
 
+export class UpdateEmployeeDto {
+  @ApiPropertyOptional() @IsOptional() @IsString() position?: string;
+  @ApiPropertyOptional() @IsOptional() @IsNumber() @Min(0) baseSalary?: number;
+  @ApiPropertyOptional() @IsOptional() @IsString() bankName?: string;
+  @ApiPropertyOptional() @IsOptional() @IsString() bankAccount?: string;
+  @ApiPropertyOptional() @IsOptional() @IsBoolean() isActive?: boolean;
+  // User fields
+  @ApiPropertyOptional() @IsOptional() @IsString() name?: string;
+  @ApiPropertyOptional() @IsOptional() @IsString() phone?: string;
+}
+
 export class GeneratePayrollDto {
   @ApiProperty({ example: '2024-01-01' }) @IsDateString() periodStart: string;
   @ApiProperty({ example: '2024-01-31' }) @IsDateString() periodEnd: string;
-  @ApiProperty() @IsNumber() outletId: number;
 }
 
 @Injectable()
@@ -86,6 +95,33 @@ export class EmployeesService {
       },
       orderBy: { createdAt: 'desc' },
     });
+  }
+
+  async update(id: number, dto: UpdateEmployeeDto) {
+    const emp = await this.prisma.employee.findUnique({ where: { id } });
+    if (!emp) throw new NotFoundException('Employee not found');
+
+    const { name, phone, ...empFields } = dto;
+
+    return this.prisma.$transaction(async (tx) => {
+      if (name || phone) {
+        await tx.user.update({
+          where: { id: emp.userId },
+          data: { ...(name && { name }), ...(phone && { phone }) },
+        });
+      }
+      return tx.employee.update({
+        where: { id },
+        data: empFields,
+        include: { user: { select: { name: true, email: true, phone: true } } },
+      });
+    });
+  }
+
+  async deactivate(id: number) {
+    const emp = await this.prisma.employee.findUnique({ where: { id } });
+    if (!emp) throw new NotFoundException('Employee not found');
+    return this.prisma.employee.update({ where: { id }, data: { isActive: false } });
   }
 
   async findOne(id: number) {
@@ -158,10 +194,27 @@ export class EmployeesService {
     });
   }
 
+  // ── Get payroll list ─────────────────────────────────────────
+  async getPayroll(outletId: number, periodStart: string, periodEnd: string) {
+    return this.prisma.payroll.findMany({
+      where: {
+        employee: { outletId },
+        periodStart: { gte: new Date(periodStart) },
+        periodEnd:   { lte: new Date(periodEnd) },
+      },
+      include: {
+        employee: {
+          include: { user: { select: { name: true, email: true } } },
+        },
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+  }
+
   // ── Generate payroll ─────────────────────────────────────────
-  async generatePayroll(dto: GeneratePayrollDto) {
+  async generatePayroll(dto: GeneratePayrollDto, outletId: number) {
     const employees = await this.prisma.employee.findMany({
-      where: { outletId: dto.outletId, isActive: true },
+      where: { outletId, isActive: true },
     });
 
     const results = await Promise.all(
@@ -184,12 +237,17 @@ export class EmployeesService {
         const workingDays = dayjs(end).diff(dayjs(start), 'day') + 1;
         const netSalary = (Number(emp.baseSalary) / workingDays) * presentDays;
 
-        return this.prisma.payroll.upsert({
-          where: {
-            // Composite unique: employee + period. Hack: use findFirst then create
-            id: 0,
-          },
-          create: {
+        const existing = await this.prisma.payroll.findFirst({
+          where: { employeeId: emp.id, periodStart: start, periodEnd: end },
+        });
+        if (existing) {
+          return this.prisma.payroll.update({
+            where: { id: existing.id },
+            data: { presentDays, netSalary },
+          });
+        }
+        return this.prisma.payroll.create({
+          data: {
             employeeId: emp.id,
             periodStart: start,
             periodEnd: end,
@@ -198,7 +256,6 @@ export class EmployeesService {
             baseSalary: emp.baseSalary,
             netSalary,
           },
-          update: { presentDays, netSalary },
         });
       }),
     );
