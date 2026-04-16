@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { Plus, Search } from 'lucide-react';
 import DataTable from '../../components/ui/DataTable';
-import { apiGet } from '../../services/api';
+import { apiGetPaginated } from '../../services/api';
 
 export default function CustomersPage() {
   const navigate = useNavigate();
@@ -12,11 +12,11 @@ export default function CustomersPage() {
 
   const { data, isLoading } = useQuery({
     queryKey: ['customers', search, page],
-    queryFn: () => apiGet('/customers', { search: search || undefined, page, limit: 20 }),
+    queryFn: () => apiGetPaginated('/customers', { search: search || undefined, page, limit: 20 }),
   });
 
-  const customers = (data as any)?.data ?? [];
-  const meta = (data as any)?.meta ?? {};
+  const customers = data?.data ?? [];
+  const meta = data?.meta ?? {};
 
   const columns = [
     { key: 'name', header: 'Name', render: (r: any) => <span className="font-medium">{r.name}</span> },

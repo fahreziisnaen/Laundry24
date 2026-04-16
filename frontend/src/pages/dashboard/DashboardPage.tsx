@@ -8,7 +8,7 @@ import {
   UserCheck, AlertTriangle, ChevronRight, TrendingUp,
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
-import { apiGet } from '../../services/api';
+import { apiGet, apiGetPaginated } from '../../services/api';
 import StatusBadge from '../../components/ui/StatusBadge';
 import dayjs from 'dayjs';
 import 'dayjs/locale/id';
@@ -57,11 +57,11 @@ export default function DashboardPage() {
     queryFn: () => apiGet('/reports/orders/stats'),
   });
 
-  const { data: recentOrders = [] } = useQuery<any[]>({
+  const { data: recentOrdersRes } = useQuery({
     queryKey: ['recent-orders'],
-    queryFn: () => apiGet('/orders', { limit: 10, page: 1 }),
-    select: (d: any) => d?.data ?? [],
+    queryFn: () => apiGetPaginated('/orders', { limit: 10, page: 1 }),
   });
+  const recentOrders = recentOrdersRes?.data ?? [];
 
   const { data: attendanceSummary } = useQuery<any>({
     queryKey: ['attendance-summary-dash'],
@@ -70,8 +70,8 @@ export default function DashboardPage() {
 
   const { data: inventoryLow = [] } = useQuery<any[]>({
     queryKey: ['inventory-low'],
-    queryFn: () => apiGet('/inventory?lowStock=true&limit=5'),
-    select: (d: any) => d?.data ?? [],
+    queryFn: () => apiGet('/inventory', { lowStock: true, limit: 5 }),
+    select: (d: any) => Array.isArray(d) ? d : [],
   });
 
   const pieData = orderStats.map((s: any) => ({

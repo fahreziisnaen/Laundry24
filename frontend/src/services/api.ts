@@ -36,8 +36,15 @@ api.interceptors.response.use(
   },
 );
 
-// Helper to extract .data from wrapped response
-export const apiGet  = <T>(url: string, params?: any) => api.get<{ data: T }>(url, { params }).then(r => r.data.data);
-export const apiPost = <T>(url: string, body?: any)   => api.post<{ data: T }>(url, body).then(r => r.data.data);
-export const apiPatch = <T>(url: string, body?: any)  => api.patch<{ data: T }>(url, body).then(r => r.data.data);
-export const apiDelete = <T>(url: string)             => api.delete<{ data: T }>(url).then(r => r.data.data);
+// Helper to extract .data from wrapped response { success, data, meta, message }
+export const apiGet    = <T>(url: string, params?: any) => api.get<{ data: T }>(url, { params }).then(r => r.data.data);
+export const apiPost   = <T>(url: string, body?: any)   => api.post<{ data: T }>(url, body).then(r => r.data.data);
+export const apiPatch  = <T>(url: string, body?: any)   => api.patch<{ data: T }>(url, body).then(r => r.data.data);
+export const apiDelete = <T>(url: string)               => api.delete<{ data: T }>(url).then(r => r.data.data);
+
+// For paginated endpoints that return { data: T[], meta: { page, totalPages, total, limit } }
+export const apiGetPaginated = <T>(url: string, params?: any) =>
+  api.get<{ data: T[]; meta: any }>(url, { params }).then(r => ({
+    data: r.data.data ?? [],
+    meta: r.data.meta ?? {},
+  }));

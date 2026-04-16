@@ -3,7 +3,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { Response } from 'express';
 import * as ExcelJS from 'exceljs';
 import PDFDocument from 'pdfkit';
-import dayjs from 'dayjs';
+import * as dayjs from 'dayjs';
 
 export interface ReportQuery {
   outletId?: number;

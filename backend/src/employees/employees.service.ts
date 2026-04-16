@@ -5,7 +5,7 @@ import { IsString, IsEmail, IsNumber, IsOptional, IsDateString, Min } from 'clas
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
 import { Prisma, AttendanceStatus } from '@prisma/client';
-import dayjs from 'dayjs';
+import * as dayjs from 'dayjs';
 
 export class CreateEmployeeDto {
   @ApiProperty() @IsString() name: string;

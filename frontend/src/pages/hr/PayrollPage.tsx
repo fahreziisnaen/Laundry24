@@ -32,7 +32,7 @@ export default function PayrollPage() {
   const { data: payrollData = [], isLoading } = useQuery<any[]>({
     queryKey: ['payroll', selectedMonth, selectedYear],
     queryFn: () => apiGet('/employees/payroll', { periodStart, periodEnd }),
-    select: (d: any) => d?.data ?? d ?? [],
+    select: (d: any) => Array.isArray(d) ? d : [],
   });
 
   const generateMutation = useMutation({

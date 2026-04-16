@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Clock, UserCheck, UserX, AlertTriangle, LogIn, LogOut } from 'lucide-react';
-import { apiGet, apiPost } from '../../services/api';
+import { apiGet, apiGetPaginated, apiPost } from '../../services/api';
 import toast from 'react-hot-toast';
 import dayjs from 'dayjs';
 import clsx from 'clsx';
@@ -33,7 +33,7 @@ export default function AttendancePage() {
 
   const { data: attendanceData, isLoading } = useQuery({
     queryKey: ['attendance', dateFilter, employeeId, page],
-    queryFn: () => apiGet('/attendance', {
+    queryFn: () => apiGetPaginated('/attendance', {
       startDate,
       endDate,
       ...(employeeId ? { employeeId: Number(employeeId) } : {}),
@@ -50,8 +50,8 @@ export default function AttendancePage() {
 
   const { data: employees = [] } = useQuery<any[]>({
     queryKey: ['employees-list'],
-    queryFn: () => apiGet('/employees?limit=100'),
-    select: (d: any) => d?.data ?? d,
+    queryFn: () => apiGet('/employees', { limit: 100 }),
+    select: (d: any) => Array.isArray(d) ? d : (d?.data ?? []),
   });
 
   const checkInMutation = useMutation({
@@ -74,8 +74,8 @@ export default function AttendancePage() {
     onError: (err: any) => toast.error(err?.response?.data?.message ?? 'Gagal check-out'),
   });
 
-  const records = (attendanceData as any)?.data ?? [];
-  const meta = (attendanceData as any)?.meta ?? {};
+  const records = attendanceData?.data ?? [];
+  const meta    = attendanceData?.meta ?? {};
   const sum = summary as any;
 
   const calcDuration = (checkIn: string, checkOut?: string) => {

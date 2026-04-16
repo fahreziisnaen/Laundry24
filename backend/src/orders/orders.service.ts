@@ -7,7 +7,7 @@ import {
 import { PrismaService } from '../prisma/prisma.service';
 import { NotificationsService } from '../notifications/notifications.service';
 import { CreateOrderDto, UpdateOrderStatusDto, OrderQueryDto } from './dto/create-order.dto';
-import dayjs from 'dayjs';
+import * as dayjs from 'dayjs';
 import { OrderStatus, Prisma } from '@prisma/client';
 
 @Injectable()

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useQuery, useMutation } from '@tanstack/react-query';
 import { User, Building2, Globe, Eye, EyeOff, Save } from 'lucide-react';
 import { apiGet, apiPatch, apiPost } from '../../services/api';
@@ -212,7 +212,7 @@ function OutletTab({ user }: { user: any }) {
   });
 
   // Sync form when outlet loads
-  useState(() => {
+  useEffect(() => {
     if (outlet) {
       setForm({
         name:    outlet.name ?? '',
@@ -221,7 +221,7 @@ function OutletTab({ user }: { user: any }) {
         city:    outlet.city ?? '',
       });
     }
-  });
+  }, [outlet]);
 
   const updateMutation = useMutation({
     mutationFn: (data: any) => apiPatch(`/outlets/${outletId}`, data),

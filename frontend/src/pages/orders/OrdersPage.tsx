@@ -4,7 +4,7 @@ import { useQuery } from '@tanstack/react-query';
 import { Plus, Search, Filter } from 'lucide-react';
 import DataTable from '../../components/ui/DataTable';
 import StatusBadge from '../../components/ui/StatusBadge';
-import { apiGet } from '../../services/api';
+import { apiGetPaginated } from '../../services/api';
 import dayjs from 'dayjs';
 
 const STATUS_OPTIONS = ['', 'RECEIVED', 'WASHING', 'IRONING', 'DONE', 'DELIVERED', 'CANCELLED'];
@@ -17,11 +17,11 @@ export default function OrdersPage() {
 
   const { data, isLoading } = useQuery({
     queryKey: ['orders', search, status, page],
-    queryFn: () => apiGet('/orders', { search: search || undefined, status: status || undefined, page, limit: 20 }),
+    queryFn: () => apiGetPaginated('/orders', { search: search || undefined, status: status || undefined, page, limit: 20 }),
   });
 
-  const orders = (data as any)?.data ?? [];
-  const meta   = (data as any)?.meta ?? {};
+  const orders = data?.data ?? [];
+  const meta   = data?.meta ?? {};
 
   const columns = [
     { key: 'orderNumber', header: 'Order #', render: (r: any) => <span className="font-mono text-xs font-medium text-brand">{r.orderNumber}</span> },
