@@ -15,6 +15,9 @@ import { DeliveryModule } from './delivery/delivery.module';
 import { NotificationsModule } from './notifications/notifications.module';
 import { IotModule } from './iot/iot.module';
 import { PaymentsModule } from './payments/payments.module';
+import { ServiceTypesModule } from './service-types/service-types.module';
+import { ShiftsModule } from './shifts/shifts.module';
+import { AttendanceModule } from './attendance/attendance.module';
 
 @Module({
   imports: [
@@ -43,6 +46,9 @@ import { PaymentsModule } from './payments/payments.module';
     NotificationsModule,
     IotModule,
     PaymentsModule,
+    ServiceTypesModule,
+    ShiftsModule,
+    AttendanceModule,
   ],
 })
 export class AppModule {}

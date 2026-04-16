@@ -1,4 +1,7 @@
 import clsx from 'clsx';
+import { TrendingUp, TrendingDown } from 'lucide-react';
+
+type ColorVariant = 'blue' | 'green' | 'yellow' | 'red' | 'purple' | 'teal' | 'orange';
 
 interface KpiCardProps {
   title: string;
@@ -6,38 +9,68 @@ interface KpiCardProps {
   subtitle?: string;
   icon: React.ReactNode;
   trend?: number;
-  color?: 'blue' | 'green' | 'yellow' | 'red' | 'purple';
+  color?: ColorVariant;
+  onClick?: () => void;
 }
 
-const colorMap = {
-  blue:   { bg: 'bg-blue-50',   icon: 'bg-blue-100 text-blue-600',   text: 'text-blue-600' },
-  green:  { bg: 'bg-green-50',  icon: 'bg-green-100 text-green-600',  text: 'text-green-600' },
-  yellow: { bg: 'bg-yellow-50', icon: 'bg-yellow-100 text-yellow-600', text: 'text-yellow-600' },
-  red:    { bg: 'bg-red-50',    icon: 'bg-red-100 text-red-600',    text: 'text-red-600' },
-  purple: { bg: 'bg-purple-50', icon: 'bg-purple-100 text-purple-600', text: 'text-purple-600' },
+const colorMap: Record<ColorVariant, { iconBg: string; iconColor: string; trendBg: string }> = {
+  blue:   { iconBg: 'bg-blue-100',   iconColor: 'text-blue-600',   trendBg: 'bg-blue-50' },
+  green:  { iconBg: 'bg-green-100',  iconColor: 'text-green-600',  trendBg: 'bg-green-50' },
+  yellow: { iconBg: 'bg-yellow-100', iconColor: 'text-yellow-600', trendBg: 'bg-yellow-50' },
+  red:    { iconBg: 'bg-red-100',    iconColor: 'text-red-600',    trendBg: 'bg-red-50' },
+  purple: { iconBg: 'bg-purple-100', iconColor: 'text-purple-600', trendBg: 'bg-purple-50' },
+  teal:   { iconBg: 'bg-teal-100',   iconColor: 'text-teal-600',   trendBg: 'bg-teal-50' },
+  orange: { iconBg: 'bg-orange-100', iconColor: 'text-orange-600', trendBg: 'bg-orange-50' },
 };
 
-export default function KpiCard({ title, value, subtitle, icon, trend, color = 'blue' }: KpiCardProps) {
+export default function KpiCard({
+  title,
+  value,
+  subtitle,
+  icon,
+  trend,
+  color = 'blue',
+  onClick,
+}: KpiCardProps) {
   const c = colorMap[color];
+  const isPositive = trend !== undefined && trend >= 0;
+
   return (
-    <div className="card">
-      <div className="flex items-start justify-between">
-        <div>
-          <p className="text-sm text-gray-500 font-medium">{title}</p>
-          <p className="mt-1 text-2xl font-bold text-gray-900">{value}</p>
-          {subtitle && <p className="mt-1 text-xs text-gray-400">{subtitle}</p>}
-        </div>
-        <div className={clsx('w-10 h-10 rounded-lg flex items-center justify-center', c.icon)}>
+    <div
+      className={clsx('stat-card', onClick && 'cursor-pointer hover:shadow-card-hover transition-shadow')}
+      onClick={onClick}
+    >
+      <div className="flex items-start justify-between mb-3">
+        <div className={clsx('stat-card-icon', c.iconBg, c.iconColor)}>
           {icon}
         </div>
+        {trend !== undefined && (
+          <div className={clsx(
+            'flex items-center gap-1 text-xs font-semibold px-2 py-0.5 rounded-full',
+            isPositive
+              ? 'bg-green-100 text-green-700'
+              : 'bg-red-100 text-red-600',
+          )}>
+            {isPositive
+              ? <TrendingUp size={11} />
+              : <TrendingDown size={11} />
+            }
+            {Math.abs(trend)}%
+          </div>
+        )}
       </div>
+
+      <p className="text-2xl font-bold text-gray-900 leading-tight truncate">{value}</p>
+      <p className="text-sm font-medium text-gray-600 mt-0.5">{title}</p>
+      {subtitle && <p className="text-xs text-gray-400 mt-0.5">{subtitle}</p>}
+
       {trend !== undefined && (
-        <div className="mt-3 flex items-center gap-1">
-          <span className={clsx('text-xs font-semibold', trend >= 0 ? 'text-green-600' : 'text-red-600')}>
-            {trend >= 0 ? '↑' : '↓'} {Math.abs(trend)}%
+        <p className="text-xs text-gray-400 mt-2">
+          <span className={isPositive ? 'text-green-600' : 'text-red-600'}>
+            {isPositive ? '▲' : '▼'} {Math.abs(trend)}%
           </span>
-          <span className="text-xs text-gray-400">vs last month</span>
-        </div>
+          {' '}vs bulan lalu
+        </p>
       )}
     </div>
   );
